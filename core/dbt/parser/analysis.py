@@ -10,5 +10,6 @@ class AnalysisParser(BaseSqlParser):
 
 
 class RPCCallParser(AnalysisParser):
+    @classmethod
     def get_compiled_path(cls, name, relative_path):
         return os.path.join('rpc', relative_path)

@@ -2,7 +2,7 @@
 from dbt.contracts.graph.unparsed import UnparsedNode
 from dbt.node_types import NodeType
 from dbt.parser.base import MacrosKnownParser
-from dbt.parser.base_sql import BaseSqlParser, SQLParseResults
+from dbt.parser.base_sql import BaseSqlParser, SQLParseResult
 
 import dbt.clients.jinja
 import dbt.exceptions
@@ -11,7 +11,6 @@ import dbt.utils
 import jinja2
 
 import os
-import re
 
 
 class ArchiveParser(MacrosKnownParser):
@@ -87,56 +86,61 @@ class ArchiveParser(MacrosKnownParser):
 
 
 class ArchiveBlockParser(BaseSqlParser):
-    def parse_archives_from_file(self, file_node, tags=None):
-        # the file node has a 'raw_sql' field that contains the jinja data with
-        # (we hope!) `archive` blocks
-        name_pattern = r'[A-Za-z_][A-Za-z0-9_]*'
-        block_begin = r'(?:\s*{0}\-|{0})'.format(re.escape('{%'))
-        block_end = r'(?:\-{0}\s%|{0})'.format(re.escape('%}'))
+    # def parse_archives_from_file(self, file_node, tags=None):
+    #     # the file node has a 'raw_sql' field that contains the jinja data with
+    #     # (we hope!) `archive` blocks
+    #     name_pattern = r'[A-Za-z_][A-Za-z0-9_]*'
+    #     block_begin = r'(?:\s*{0}\-|{0})'.format(re.escape('{%'))
+    #     block_end = r'(?:\-{0}\s%|{0})'.format(re.escape('%}'))
 
-        start_pat = r'(?P<begin>({})\s*archive\s+(?P<name>({}))({}))'.format(
-                block_begin, name_pattern, block_end
-        )
+    #     start_pat = r'(?P<begin>({})\s*archive\s+(?P<name>({}))({}))'.format(
+    #             block_begin, name_pattern, block_end
+    #     )
 
-        end_pat = r'(.*?)({}\s*endarchive\s*{})'.format(block_begin, block_end)
-        full_pat = '{}(?P<body>(.*)){}'.format(start_pat, end_pat)
+    #     end_pat = r'(.*?)({}\s*endarchive\s*{})'.format(block_begin, block_end)
+    #     full_pat = '{}(?P<body>(.*)){}'.format(start_pat, end_pat)
 
-        blocks = re.findall(full_pat, file_node.raw_sql,
-                            flags=re.DOTALL|re.MULTILINE)
+    #     blocks = re.findall(full_pat, file_node.raw_sql,
+    #                         flags=re.DOTALL|re.MULTILINE)
 
-        import ipdb;ipdb.set_trace()
-        for block in blocks:
-            groups = block.groupdict()
+    #     import ipdb;ipdb.set_trace()
+    #     for block in blocks:
+    #         groups = block.groupdict()
 
+    #     try:
+    #         template = dbt.clients.jinja.get_template(file_node.raw_sql, {})
+    #     except dbt.exceptions.CompilationException as e:
+    #         if e.node is None:
+    #             e.node = file_node
+    #         raise
 
-        try:
-            template = dbt.clients.jinja.get_template(file_node.raw_sql, {})
-        except dbt.exceptions.CompilationException as e:
-            if e.node is None:
-                e.node = file_node
-            raise
+    #     for key, item in template.module.__dict__.items():
+    #         if type(item) != jinja2.runtime.Macro:
+    #             continue
 
-        for key, item in template.module.__dict__.items():
-            if type(item) != jinja2.runtime.Macro:
-                continue
+    #         if not key.startswith(dbt.utils.ARCHIVE_PREFIX):
+    #             continue
 
-            if not key.startswith(dbt.utils.ARCHIVE_PREFIX):
-                continue
+    #         name = key.replace(dbt.utils.ARCHIVE_PREFIX, '')
 
-            name = key.replace(dbt.utils.ARCHIVE_PREFIX, '')
+    #         unique_id = 'archive.{}.{}'.format(file_node.package_name, name)
+    #         fqn = self.get_fqn(file_node.path,
+    #                            self.all_projects[file_node.package_name])
+    #         raw_sql = item().strip()
+    #         yield file_node.incorporate(raw_sql=raw_sql, name=name,
+    #                                     unique_id=unique_id, fqn=fqn)
 
-            unique_id = 'archive.{}.{}'.format(file_node.package_name, name)
-            fqn = self.get_fqn(file_node.path,
-                               self.all_projects[file_node.package_name])
-            raw_sql = item().strip()
-            yield file_node.incorporate(raw_sql=raw_sql, name=name,
-                                        unique_id=unique_id, fqn=fqn)
+    @classmethod
+    def get_compiled_path(cls, name, relative_path):
+        return os.path.join('analysis', relative_path)
 
     def parse_sql_nodes(self, nodes, tags=None):
         if tags is None:
             tags = []
+        import ipdb;ipdb.set_trace()
+        return super(ArchiveBlockParser, self).parse_sql_nodes(nodes, tags)
 
-        results = SQLParseResults()
+        results = SQLParseResult()
 
         # in archives, we have stuff in blocks.
         for file_node in nodes:

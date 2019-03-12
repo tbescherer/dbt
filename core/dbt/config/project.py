@@ -243,7 +243,7 @@ class Project(object):
         analysis_paths = project_dict.get('analysis-paths', [])
         docs_paths = project_dict.get('docs-paths', source_paths[:])
         target_path = project_dict.get('target-path', 'target')
-        archive_paths = project_dict.get('archive-paths', ['archive'])
+        archive_paths = project_dict.get('archive-paths', ['archives'])
         # should this also include the modules path by default?
         clean_targets = project_dict.get('clean-targets', [target_path])
         log_path = project_dict.get('log-path', 'logs')

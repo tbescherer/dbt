@@ -35,15 +35,15 @@ class GraphLoader(object):
                              self.macro_manifest)
 
         for project_name, project in self.all_projects.items():
-            nodes, disabled = parser.load_and_parse(
+            parse_results = parser.load_and_parse(
                 package_name=project_name,
                 root_dir=project.project_root,
                 relative_dirs=getattr(project, relative_dirs_attr),
                 resource_type=resource_type,
                 **kwargs
             )
-            self.nodes.update(nodes)
-            self.disabled.extend(disabled)
+            self.nodes.update(parse_results.parsed)
+            self.disabled.extend(parse_results.disabled)
 
     def _load_macros(self, internal_manifest=None):
         # skip any projects in the internal manifest
