@@ -128,6 +128,7 @@ def find_in_list_by_name(haystack, target_name, target_package, nodetype):
 
 MACRO_PREFIX = 'dbt_macro__'
 DOCS_PREFIX = 'dbt_docs__'
+ARCHIVE_PREFIX = 'dbt_archive__'
 
 
 def get_dbt_macro_name(name):
@@ -136,6 +137,10 @@ def get_dbt_macro_name(name):
 
 def get_dbt_docs_name(name):
     return '{}{}'.format(DOCS_PREFIX, name)
+
+
+def get_dbt_archive_name(name):
+    return '{}{}'.format(ARCHIVE_PREFIX, name)
 
 
 def get_materialization_macro_name(materialization_name, adapter_type=None,
@@ -156,6 +161,13 @@ def get_docs_macro_name(docs_name, with_prefix=True):
         return get_dbt_docs_name(docs_name)
     else:
         return docs_name
+
+
+def get_archive_macro_name(archive_name, with_prefix=True):
+    if with_prefix:
+        return get_dbt_archive_name(archive_name)
+    else:
+        return archive_name
 
 
 def split_path(path):

@@ -234,6 +234,7 @@ def get_environment(node=None, capture_macros=False):
 
     args['extensions'].append(MaterializationExtension)
     args['extensions'].append(DocumentationExtension)
+    args['extensions'].append(ArchiveExtension)
 
     return MacroFuzzEnvironment(**args)
 

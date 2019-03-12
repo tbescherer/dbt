@@ -338,31 +338,8 @@ class UnparsedSourceDefinition(APIObject):
         return [UnparsedTableDefinition(**t) for t in self.get('tables', [])]
 
 
-UNPARSED_DOCUMENTATION_FILE_CONTRACT = {
-    'type': 'object',
-    'additionalProperties': False,
+UNPARSED_DOCUMENTATION_FILE_CONTRACT = deep_merge(UNPARSED_BASE_CONTRACT, {
     'properties': {
-        'package_name': {
-            'type': 'string',
-        },
-        # filesystem
-        'root_path': {
-            'type': 'string',
-            'description': 'The absolute path to the project root',
-        },
-        'path': {
-            'type': 'string',
-            'description': (
-                'Relative path to the source file from the project root. '
-                'Usually the same as original_file_path, but in some cases '
-                'dbt will generate a path.'),
-        },
-        'original_file_path': {
-            'type': 'string',
-            'description': (
-                'Relative path to the originating file from the project root.'
-                ),
-        },
         'file_contents': {
             'type': 'string',
             'description': (
@@ -379,11 +356,34 @@ UNPARSED_DOCUMENTATION_FILE_CONTRACT = {
         },
     },
     'required': [
-        'package_name', 'root_path', 'path', 'original_file_path',
         'file_contents', 'resource_type'
     ],
-}
+})
 
 
 class UnparsedDocumentationFile(APIObject):
     SCHEMA = UNPARSED_DOCUMENTATION_FILE_CONTRACT
+
+
+UNPARSED_ARCHIVE_FILE_CONTRACT = deep_merge(UNPARSED_BASE_CONTRACT, {
+    'properties': {
+        'file_contents': {
+            'type': 'string',
+            'description': (
+                'The raw text provided in the archive block',
+            ),
+        },
+        'resource_type': {
+            'enum': [
+                NodeType.Archive,
+            ]
+        },
+    },
+    'required': [
+        'file_contents', 'resource_type'
+    ],
+})
+
+
+class UnparsedArchiveFile(APIObject):
+    SCHEMA = UNPARSED_ARCHIVE_FILE_CONTRACT
