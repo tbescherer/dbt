@@ -5,6 +5,7 @@ import re
 
 import jinja2
 import jinja2._compat
+import jinja2.compiler
 import jinja2.ext
 import jinja2.lexer
 import jinja2.nodes
@@ -38,13 +39,19 @@ class MacroFuzzParser(jinja2.parser.Parser):
     def parse_statement(self):
         token = self.stream.current
         if token.type == 'data':
-            import ipdb;ipdb.set_trace()
             # this is one of our custom data tokens, we should extract it
             ext = self.extensions.get(token.realtype)
             if ext is not None:
                 return ext(self)
             self.fail_unknown_tag(token.realtype, token.lineno)
         return super(MacroFuzzParser, self).parse_statement()
+
+
+class CustomCodeGenerator(jinja2.compiler.CodeGenerator):
+    def visit_TemplateData(self, node, frame):
+        if hasattr(node, 'realtype'):
+            self.newline()
+        super(CustomCodeGenerator, self).visit_TemplateData(node, frame)
 
 
 def regex(x):
@@ -74,11 +81,23 @@ class BeginBlockToken(jinja2.lexer.Token):
     def type(self):
         return jinja2.lexer.TOKEN_BLOCK_BEGIN
 
+    @property
+    def realtype(self):
+        trimleft = len('dbt_raw_')
+        trimright = len('_begin')
+        return self[1][trimleft:-trimright]
+
 
 class EndBlockToken(jinja2.lexer.Token):
     @property
     def type(self):
         return jinja2.lexer.TOKEN_BLOCK_END
+
+    @property
+    def realtype(self):
+        trimleft = len('dbt_raw_')
+        trimright = len('_end')
+        return self[1][trimleft:-trimright]
 
 
 class BlockDataToken(jinja2.lexer.Token):
@@ -102,25 +121,22 @@ class JinjaCustomLexer(jinja2.lexer.Lexer):
         self.insert_custom_raw_rules(environment)
 
     def insert_custom_raw_rules(self, environment):
-        # jinja uses these and it's easier than rewriting everything.
-
         # sooooo complicated to support this, skip it
         assert not environment.lstrip_blocks, 'lstrip_blocks not supported!'
+
         block_suffix_re = environment.trim_blocks and '\\n?' or ''
         block_prefix_re = '%s' % re.escape(environment.block_start_string)
 
         prefix_pattern = (
-            r'(.*?)(?:(?P<{token_name}>(?:\s*{escaped_start}\-|{block_prefix})\s*'
-            r'{tag_name}\s*([A-Za-z_][A-Za-z_0-9]+)\s*'
-            r'(?:\-{escaped_end}\s*|{escaped_end})))'
+            r'(.*?)(?:\s*{escaped_start}\-|{block_prefix})\s*'
+            r'{tag_name}\s*(?P<{token_name}>([A-Za-z_][A-Za-z_0-9]+))\s*'
+            r'(?:\-{escaped_end}\s*|{escaped_end})'
         )
 
         suffix_pattern = (
             r'(.*?)((?:\s*{escaped_start}\-|{block_prefix})\s*end{tag_name}\s*'
             r'(?:\-{escaped_end}\s*|{escaped_end}{block_suffix}))'
         )
-
-        parts = []
 
         for name in self.DBT_CUSTOM_BLOCK_NAMES:
             begin_token = _dbt_begin(name)
@@ -165,7 +181,6 @@ class JinjaCustomLexer(jinja2.lexer.Lexer):
             ]
             self.rules[begin_token] = suffix
 
-
     def wrap(self, stream, name=None, filename=None):
 
         superself = super(JinjaCustomLexer, self)
@@ -190,6 +205,8 @@ class JinjaCustomLexer(jinja2.lexer.Lexer):
 
 
 class MacroFuzzEnvironment(jinja2.sandbox.SandboxedEnvironment):
+    code_generator_class = CustomCodeGenerator
+
     def _parse(self, source, name, filename):
         return MacroFuzzParser(
             self, source, name,
@@ -325,15 +342,40 @@ class DocumentationExtension(jinja2.ext.Extension):
 class ArchiveExtension(jinja2.ext.Extension):
     tags = ['archive']
 
-    def parse(self, parser):
-        token = parser.stream.current
-        node = jinja2.nodes.Macro(lineno=token.lineno)
-        # TODO: how can I extract the name of a raw field?
+    def _is_my_begin_tag(self, token):
+        return (isinstance(token, BeginBlockToken) and
+                token.realtype == self.tags[0])
 
+    def _is_my_end_tag(self, token):
+        return (isinstance(token, EndBlockToken) and
+                token.realtype == self.tags[0])
+
+    def filter_stream(self, stream):
+        for token in stream:
+            if self._is_my_begin_tag(token):
+                # yeield a begin tag
+                yield token
+                # now yield a name field for the begin tag. In our case, that
+                # will be 'archive', so we can get called by parse()
+                yield jinja2.lexer.Token(token.lineno, 'name', self.tags[0])
+                # our parse() method will see this and the data field
+                yield jinja2.lexer.Token(token.lineno, 'name', token.value)
+            elif self._is_my_end_tag(token):
+                yield token
+            else:
+                yield token
+
+    def parse(self, parser):
+        node = jinja2.nodes.Macro(lineno=next(parser.stream).lineno)
+        archive_name = parser.parse_assign_target(name_only=True).name
         node.args = []
         node.defaults = []
         node.name = dbt.utils.get_archive_macro_name(archive_name)
-        node.body = token.data
+        token = parser.stream.expect('data')
+        data = jinja2.nodes.TemplateData(token.value,
+                                         lineno=token.lineno)
+        data.realtype = self.tags[0]
+        node.body = [data]
         return node
 
 

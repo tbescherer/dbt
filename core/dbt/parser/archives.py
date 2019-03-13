@@ -137,7 +137,6 @@ class ArchiveBlockParser(BaseSqlParser):
     def parse_sql_nodes(self, nodes, tags=None):
         if tags is None:
             tags = []
-        import ipdb;ipdb.set_trace()
         return super(ArchiveBlockParser, self).parse_sql_nodes(nodes, tags)
 
         results = SQLParseResult()
