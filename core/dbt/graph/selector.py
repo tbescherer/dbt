@@ -300,7 +300,7 @@ class NodeSelector(object):
     def get_selected(self, include, exclude, resource_types, tags, required):
         graph = self.linker.graph
 
-        include = coalesce(include, ['*'])
+        include = coalesce(include, ['fqn:*', 'source:*'])
         exclude = coalesce(exclude, [])
         tags = coalesce(tags, [])
 
