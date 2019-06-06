@@ -214,7 +214,8 @@ class SchemaParserTest(BaseParserTest):
             quoting={
                 'schema': True,
                 'identifier': False,
-            }
+            },
+            fqn=['root', 'my_source', 'my_table']
         )
 
         self._expected_source_tests = [
